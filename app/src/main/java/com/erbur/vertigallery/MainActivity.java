@@ -4,15 +4,20 @@ import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
+import android.annotation.SuppressLint;
 import android.graphics.Point;
 import android.graphics.Rect;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.view.ViewPager;
+import android.util.Log;
+import android.view.GestureDetector;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.DecelerateInterpolator;
@@ -59,41 +64,29 @@ public class MainActivity extends FragmentActivity {
         }
 
         @Override
-        public void onPageScrolled( int position , float positionOffset , int positionOffsetPixels )
-        {
+        public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
             // Ignore scroll state settling - only consider user swiping.
-            if(mCurrentPagerState != ViewPager.SCROLL_STATE_SETTLING)
-            {
-                if ( position == mCurrentSelectedScreen )
-                {
+            if (mCurrentPagerState != ViewPager.SCROLL_STATE_SETTLING) {
+                if (position == mCurrentSelectedScreen) {
                     // We are moving to next screen DOWN
-                    if ( positionOffset > 0.05 )
-                    {
+                    if (positionOffset > 0.05) {
                         // Closer to next screen than to current
-                        if ( position + 1 != mNextSelectedScreen )
-                        {
+                        if (position + 1 != mNextSelectedScreen) {
                             mNextSelectedScreen = position + 1;
                             mPager.setCurrentItem(mNextSelectedScreen);
                         }
-                    }
-                    else
-                    {
+                    } else {
                         // Closer to current screen than to next
-                        if ( position != mNextSelectedScreen )
-                        {
+                        if (position != mNextSelectedScreen) {
                             mNextSelectedScreen = position;
                             mPager.setCurrentItem(mNextSelectedScreen);
                         }
                     }
-                }
-                else
-                {
+                } else {
                     // We are moving to next screen UP
-                    if ( positionOffset < 0.95 )
-                    {
+                    if (positionOffset < 0.95) {
                         // Closer to next screen than to current
-                        if ( position != mNextSelectedScreen )
-                        {
+                        if (position != mNextSelectedScreen) {
                             mNextSelectedScreen = position;
                             mPager.setCurrentItem(mNextSelectedScreen);
                         }
@@ -103,8 +96,7 @@ public class MainActivity extends FragmentActivity {
         }
 
         @Override
-        public void onPageSelected( int arg0 )
-        {
+        public void onPageSelected(int arg0) {
             mCurrentSelectedScreen = arg0;
             mNextSelectedScreen = arg0;
         }
@@ -123,7 +115,7 @@ public class MainActivity extends FragmentActivity {
 
         @Override
         public Fragment getItem(int position) {
-            if( position >= 0 && position < getCount()) {
+            if (position >= 0 && position < getCount()) {
                 return FragmentOne.newInstance(position, mResources[position]);
             }
             return null;
@@ -169,44 +161,45 @@ public class MainActivity extends FragmentActivity {
                     android.R.integer.config_shortAnimTime);
         }
 
+        @SuppressLint("ClickableViewAccessibility")
         @Override
-        public View onCreateView(LayoutInflater inflater, ViewGroup container,
+        public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
                                  Bundle savedInstanceState) {
             final View v = inflater.inflate(R.layout.fragment_one, container, false);
 
-
+            // Set Resource Images
             final ImageView thumbnailView = v.findViewById(R.id.thumb_button_1);
             thumbnailView.setImageResource(mResource);
 
             final ImageView expandedView = v.findViewById(R.id.expanded_image);
             expandedView.setImageResource(mResource);
 
-            thumbnailView.setOnClickListener(new View.OnClickListener() {
+            // Set on Double Tap Zoom Detector
+            thumbnailView.setOnTouchListener(new View.OnTouchListener() {
+                private GestureDetector gestureDetector = new GestureDetector(v.getContext(), new GestureDetector.SimpleOnGestureListener() {
+                    @Override
+                    public boolean onDoubleTap(MotionEvent e) {
+                        zoomImageFromThumb(thumbnailView, expandedView, v);
+                        return super.onDoubleTap(e);
+                    }
+                });
+
                 @Override
-                public void onClick(View view) {
-                    zoomImageFromThumb(thumbnailView, expandedView, v);
+                public boolean onTouch(View v, MotionEvent event) {
+                    gestureDetector.onTouchEvent(event);
+                    return true;
                 }
             });
-
-            // Here we set the image by resource id.
-//            ImageView imageView = v.findViewById(R.id.thumb_button_1);
-//            imageView.setImageResource(mResource);
-
-//            thumbnailView = v.findViewById(R.id.expanded_image);
-//            thumbnailView.setImageResource(mResource);
             return v;
         }
 
-        private void zoomImageFromThumb(final View thumbView, final View expandedImageView, final View container) {
+        @SuppressLint("ClickableViewAccessibility")
+        private void zoomImageFromThumb(final ImageView thumbnailView, final ImageView expandedView, final View v) {
             // If there's an animation in progress, cancel it
             // immediately and proceed with this one.
             if (mCurrentAnimator != null) {
                 mCurrentAnimator.cancel();
             }
-
-            // Load the high-resolution "zoomed-in" image.
-//            final ImageView expandedImageView = (ImageView) findViewById(
-//                    R.id.expanded_image);
 
             // Calculate the starting and ending bounds for the zoomed-in image.
             // This step involves lots of math. Yay, math.
@@ -219,8 +212,8 @@ public class MainActivity extends FragmentActivity {
             // view. Also set the container view's offset as the origin for the
             // bounds, since that's the origin for the positioning animation
             // properties (X, Y).
-            thumbView.getGlobalVisibleRect(startBounds);
-            container.findViewById(R.id.container)
+            thumbnailView.getGlobalVisibleRect(startBounds);
+            v.findViewById(R.id.container)
                     .getGlobalVisibleRect(finalBounds, globalOffset);
             startBounds.offset(-globalOffset.x, -globalOffset.y);
             finalBounds.offset(-globalOffset.x, -globalOffset.y);
@@ -250,26 +243,26 @@ public class MainActivity extends FragmentActivity {
             // Hide the thumbnail and show the zoomed-in view. When the animation
             // begins, it will position the zoomed-in view in the place of the
             // thumbnail.
-            thumbView.setAlpha(0f);
-            expandedImageView.setVisibility(View.VISIBLE);
+            thumbnailView.setAlpha(0f);
+            expandedView.setVisibility(View.VISIBLE);
 
             // Set the pivot point for SCALE_X and SCALE_Y transformations
             // to the top-left corner of the zoomed-in view (the default
             // is the center of the view).
-            expandedImageView.setPivotX(0f);
-            expandedImageView.setPivotY(0f);
+            expandedView.setPivotX(0f);
+            expandedView.setPivotY(0f);
 
             // Construct and run the parallel animation of the four translation and
             // scale properties (X, Y, SCALE_X, and SCALE_Y).
             AnimatorSet set = new AnimatorSet();
             set
-                    .play(ObjectAnimator.ofFloat(expandedImageView, View.X,
+                    .play(ObjectAnimator.ofFloat(expandedView, View.X,
                             startBounds.left, finalBounds.left))
-                    .with(ObjectAnimator.ofFloat(expandedImageView, View.Y,
+                    .with(ObjectAnimator.ofFloat(expandedView, View.Y,
                             startBounds.top, finalBounds.top))
-                    .with(ObjectAnimator.ofFloat(expandedImageView, View.SCALE_X,
+                    .with(ObjectAnimator.ofFloat(expandedView, View.SCALE_X,
                             startScale, 1f))
-                    .with(ObjectAnimator.ofFloat(expandedImageView,
+                    .with(ObjectAnimator.ofFloat(expandedView,
                             View.SCALE_Y, startScale, 1f));
             set.setDuration(mShortAnimationDuration);
             set.setInterpolator(new DecelerateInterpolator());
@@ -290,47 +283,57 @@ public class MainActivity extends FragmentActivity {
             // Upon clicking the zoomed-in image, it should zoom back down
             // to the original bounds and show the thumbnail instead of
             // the expanded image.
+            // TODO: Make this activate on Fragment Scroll :).
             final float startScaleFinal = startScale;
-            expandedImageView.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    if (mCurrentAnimator != null) {
-                        mCurrentAnimator.cancel();
+            expandedView.setOnTouchListener(new View.OnTouchListener() {
+                private GestureDetector gestureDetector = new GestureDetector(v.getContext(), new GestureDetector.SimpleOnGestureListener() {
+                    @Override
+                    public boolean onDoubleTap(MotionEvent e) {
+                        if (mCurrentAnimator != null) {
+                            mCurrentAnimator.cancel();
+                        }
+
+                        // Animate the four positioning/sizing properties in parallel,
+                        // back to their original values.
+                        AnimatorSet set = new AnimatorSet();
+                        set.play(ObjectAnimator
+                                .ofFloat(expandedView, View.X, startBounds.left))
+                                .with(ObjectAnimator
+                                        .ofFloat(expandedView,
+                                                View.Y, startBounds.top))
+                                .with(ObjectAnimator
+                                        .ofFloat(expandedView,
+                                                View.SCALE_X, startScaleFinal))
+                                .with(ObjectAnimator
+                                        .ofFloat(expandedView,
+                                                View.SCALE_Y, startScaleFinal));
+                        set.setDuration(mShortAnimationDuration);
+                        set.setInterpolator(new DecelerateInterpolator());
+                        set.addListener(new AnimatorListenerAdapter() {
+                            @Override
+                            public void onAnimationEnd(Animator animation) {
+                                thumbnailView.setAlpha(1f);
+                                expandedView.setVisibility(View.GONE);
+                                mCurrentAnimator = null;
+                            }
+
+                            @Override
+                            public void onAnimationCancel(Animator animation) {
+                                thumbnailView.setAlpha(1f);
+                                expandedView.setVisibility(View.GONE);
+                                mCurrentAnimator = null;
+                            }
+                        });
+                        set.start();
+                        mCurrentAnimator = set;
+                        return super.onDoubleTap(e);
                     }
+                });
 
-                    // Animate the four positioning/sizing properties in parallel,
-                    // back to their original values.
-                    AnimatorSet set = new AnimatorSet();
-                    set.play(ObjectAnimator
-                            .ofFloat(expandedImageView, View.X, startBounds.left))
-                            .with(ObjectAnimator
-                                    .ofFloat(expandedImageView,
-                                            View.Y,startBounds.top))
-                            .with(ObjectAnimator
-                                    .ofFloat(expandedImageView,
-                                            View.SCALE_X, startScaleFinal))
-                            .with(ObjectAnimator
-                                    .ofFloat(expandedImageView,
-                                            View.SCALE_Y, startScaleFinal));
-                    set.setDuration(mShortAnimationDuration);
-                    set.setInterpolator(new DecelerateInterpolator());
-                    set.addListener(new AnimatorListenerAdapter() {
-                        @Override
-                        public void onAnimationEnd(Animator animation) {
-                            thumbView.setAlpha(1f);
-                            expandedImageView.setVisibility(View.GONE);
-                            mCurrentAnimator = null;
-                        }
-
-                        @Override
-                        public void onAnimationCancel(Animator animation) {
-                            thumbView.setAlpha(1f);
-                            expandedImageView.setVisibility(View.GONE);
-                            mCurrentAnimator = null;
-                        }
-                    });
-                    set.start();
-                    mCurrentAnimator = set;
+                @Override
+                public boolean onTouch(View v, MotionEvent event) {
+                    gestureDetector.onTouchEvent(event);
+                    return true;
                 }
             });
         }
