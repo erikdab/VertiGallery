@@ -17,6 +17,7 @@
             </intent-filter>
         </activity>
         <activity android:name=".ImageZoomActivity"></activity>
+        <activity android:name=".ImagePuzzleActivity" />
     </application>
 
 </manifest>

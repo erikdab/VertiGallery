@@ -47,15 +47,7 @@ public class MainActivity extends FragmentActivity {
             R.drawable.wallpaper10,
             R.drawable.wallpaper11,
             R.drawable.wallpaper12,
-            R.drawable.wallpaper13,
-            R.drawable.adblock,
-            R.drawable.nokia,
-            R.drawable.ryzen,
-            R.drawable.vim,
-            R.drawable.profile_img,
-            R.drawable.emacs,
-            R.drawable.television,
-            R.drawable.stonehenge,
+            R.drawable.wallpaper13
     };
 
     MyAdapter mAdapter;
@@ -91,23 +83,21 @@ public class MainActivity extends FragmentActivity {
 
             if (position == mCurrentSelectedScreen) {
                 // We are moving to next screen DOWN
-                if (positionOffset > 0.05) {
+                if (positionOffset > 0.1) {
                     // Closer to next screen than to current
                     if (position + 1 != mNextSelectedScreen) {
                         mNextSelectedScreen = position + 1;
                         mPager.setCurrentItem(mNextSelectedScreen);
                     }
-                } else {
                     // Closer to current screen than to next
-                    if (position != mNextSelectedScreen) {
-                        mNextSelectedScreen = position;
-                        mPager.setCurrentItem(mNextSelectedScreen);
-                    }
+                } else if (position != mNextSelectedScreen) {
+                    mNextSelectedScreen = position;
+                    mPager.setCurrentItem(mNextSelectedScreen);
                 }
             }
             // We are moving to next screen UP
             // Closer to next screen than to current
-            else if (positionOffset < 0.95 && position != mNextSelectedScreen) {
+            else if (positionOffset < 0.9 && position != mNextSelectedScreen) {
                 mNextSelectedScreen = position;
                 mPager.setCurrentItem(mNextSelectedScreen);
             }
@@ -187,6 +177,15 @@ public class MainActivity extends FragmentActivity {
                                 startActivity(intent);
 
                                 return super.onDoubleTap(e);
+                            }
+
+                            @Override
+                            public void onLongPress(MotionEvent e) {
+                                Intent intent = new Intent(v.getContext(), ImagePuzzleActivity.class);
+                                intent.putExtra("resourceId", mResource);
+                                startActivity(intent);
+
+                                super.onLongPress(e);
                             }
                         });
 
