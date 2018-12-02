@@ -1,32 +1,25 @@
 package com.erbur.vertigallery;
 
-import android.animation.Animator;
-import android.animation.AnimatorListenerAdapter;
-import android.animation.AnimatorSet;
-import android.animation.ObjectAnimator;
 import android.annotation.SuppressLint;
 import android.content.Intent;
-import android.graphics.Point;
-import android.graphics.Rect;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v4.app.Fragment;
-import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.view.ViewPager;
+import android.support.v7.app.AppCompatActivity;
 import android.view.GestureDetector;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.animation.DecelerateInterpolator;
 import android.widget.ImageView;
 
 /**
  * Vertical Gallery Main Activity - Vertical Image Pager.
  */
-public class MainActivity extends FragmentActivity {
+public class MainActivity extends AppCompatActivity {
 
     // List of available images.
     static int[] mResources = {
