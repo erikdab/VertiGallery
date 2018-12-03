@@ -59,7 +59,7 @@ public class ImagePuzzleActivity extends AppCompatActivity {
 
         // Initialize Puzzle Chunk Ids
         for(int i=0;i<CHUNK_NUMBERS;i++) {
-            puzzleChunkIds[0]=0;
+            puzzleChunkIds[0]=-1;
         }
 
         loadPuzzle();
@@ -84,29 +84,21 @@ public class ImagePuzzleActivity extends AppCompatActivity {
 
     private void clearSlot(ImageView slot) {
         slot.setImageResource(0);
-        slot.setTag(0);
+        slot.setTag(-1);
     }
 
     private boolean isSlotEmpty(ImageView slot) {
-        return (int) slot.getTag() == 0;
-    }
-
-    private String printArray(int[] array) {
-        String arr = "";
-        for(int i=0;i<array.length;i++) {
-            arr+=Integer.toString(array[i])+",";
-        }
-        return arr;
+        return (int) slot.getTag() == -1;
     }
 
     private void savePuzzle() {
+        // Save array from Slots.
         for(int i=0;i<CHUNK_NUMBERS;i++) {
             View v = puzzleGrid.getChildAt(i);
             puzzleChunkIds[i] = (int) v.getTag();
         }
 
-        Log.d("UIDDIDIDI", "saving");
-        Log.d("UIDDIDIDI", printArray(puzzleChunkIds));
+        // Save Array.
         JSONArray jsonArray = new JSONArray(Arrays.asList(puzzleChunkIds));
         JSONObject jsonObject = new JSONObject();
         try {
@@ -114,41 +106,29 @@ public class ImagePuzzleActivity extends AppCompatActivity {
         } catch (JSONException e) {
             e.printStackTrace();
         }
-        Log.d("UIDDIDIDI", jsonObject.toString());
         Utils.create(this, "storage.json", jsonObject.toString());
     }
 
     private void loadPuzzle() {
-
-        Log.d("UIDDIDIDI", "loading");
+        // Load Array.
         boolean isFilePresent = Utils.isFilePresent(this, "storage.json");
         if(isFilePresent) {
             String jsonString = Utils.read(this, "storage.json");
-
-            Log.d("UIDDIDIDI", jsonString);
             try {
                 JSONObject jsonObject = new JSONObject(jsonString);
+                JSONArray innerJSONArray = ((JSONArray) jsonObject.get("puzzle")).getJSONArray(0);
 
-                Log.d("UIDDIDIDI", jsonObject.toString());
-                JSONArray jsonArray = (JSONArray) jsonObject.get("puzzle");
-                Log.d("UIDDIDIDI", jsonArray.toString());
-                Log.d("UIDDIDIDI", ":)");
-                if (jsonArray != null) {
-
-                    Log.d("UIDDIDIDI", "not null");
-                    JSONArray innerJSONArray = jsonArray.getJSONArray(0);
-                    for (int i = 0; i < innerJSONArray.length(); i++) {
-                        puzzleChunkIds[i] = innerJSONArray.getInt(i);
-                    }
+                for (int i = 0; i < innerJSONArray.length(); i++) {
+                    puzzleChunkIds[i] = innerJSONArray.getInt(i);
                 }
             } catch (JSONException e) {
-                Log.d("UIDDIDIDI", ":(");
+                e.printStackTrace();
             }
         }
 
-        Log.d("UIDDIDIDI", printArray(puzzleChunkIds));
+        // Update actual Slots.
         for(int i=0;i<CHUNK_NUMBERS;i++) {
-            if(puzzleChunkIds[i] != 0) {
+            if(puzzleChunkIds[i] != -1) {
                 ImageView puzzleSlot = (ImageView) puzzleGrid.getChildAt(i);
                 setSlot(puzzleSlot, puzzleChunkIds[i]);
                 ImageView bagSlot = (ImageView) bagGrid.getChildAt(puzzleChunkIds[i]);
@@ -181,12 +161,6 @@ public class ImagePuzzleActivity extends AppCompatActivity {
         params.width = 0;
         params.height = 0;
 
-//        if(row == 0) {
-//            params.setGravity(Gravity.BOTTOM);
-//        }
-//        if(row == rowCount-1) {
-//            params.setGravity(Gravity.TOP);
-//        }
         view.setLayoutParams(params);
 
         view.setOnDragListener(new View.OnDragListener() {
@@ -278,7 +252,7 @@ public class ImagePuzzleActivity extends AppCompatActivity {
         view.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
-                if ((int) view.getTag() == 0) return false;
+                if (isSlotEmpty((ImageView) v)) return false;
 
                 // chunkId
                 ClipData data = ClipData.newPlainText("value", view.getTag().toString());
