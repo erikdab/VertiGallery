@@ -1,17 +1,16 @@
 package com.erbur.vertigallery;
 
 import android.content.ClipData;
+import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.BitmapDrawable;
 import android.os.Bundle;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.GridLayout;
-import android.util.Log;
 import android.view.DragEvent;
-import android.view.Gravity;
 import android.view.View;
 import android.widget.ImageView;
 
@@ -31,6 +30,7 @@ public class ImagePuzzleActivity extends AppCompatActivity {
     GridLayout puzzleGrid, bagGrid;
 
     ArrayList<Bitmap> imageChunks;
+    Bitmap clearImage;
 
     private enum GRIDTYPE {
         PUZZLE,
@@ -50,6 +50,9 @@ public class ImagePuzzleActivity extends AppCompatActivity {
         getSupportActionBar().setTitle("Image Puzzle");
 
         imageChunks = splitImage(drawable, CHUNK_NUMBERS);
+
+        clearImage = Bitmap.createBitmap(imageChunks.get(0).getWidth(), imageChunks.get(0).getHeight(), Bitmap.Config.ARGB_8888);
+        clearImage.eraseColor(Color.TRANSPARENT);
 
         puzzleGrid = findViewById(R.id.puzzlegrid);
         initGrid(puzzleGrid, GRIDTYPE.PUZZLE);
@@ -83,12 +86,42 @@ public class ImagePuzzleActivity extends AppCompatActivity {
     }
 
     private void clearSlot(ImageView slot) {
-        slot.setImageResource(0);
+        slot.setImageBitmap(clearImage);
         slot.setTag(-1);
     }
 
     private boolean isSlotEmpty(ImageView slot) {
         return (int) slot.getTag() == -1;
+    }
+
+    private void checkPuzzle() {
+        for(int i=0;i<CHUNK_NUMBERS;i++) {
+            if (puzzleChunkIds[i] != i) {
+                return;
+            }
+        }
+
+        AlertDialog.Builder dlgAlert  = new AlertDialog.Builder(this);
+        dlgAlert.setMessage("You've completed the puzzle!");
+        dlgAlert.setPositiveButton("OK",
+                new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                    }
+                });
+        dlgAlert.setCancelable(true);
+        dlgAlert.create().show();
+    }
+
+    private void resetPuzzle() {
+        for(int i=0;i<CHUNK_NUMBERS;i++) {
+            ImageView puzzleSlot = (ImageView) puzzleGrid.getChildAt(i);
+            ImageView bagSlot = (ImageView) bagGrid.getChildAt(i);
+            puzzleChunkIds[i] = -1;
+        }
+
+        savePuzzle();
+        loadPuzzle();
     }
 
     private void savePuzzle() {
@@ -97,6 +130,7 @@ public class ImagePuzzleActivity extends AppCompatActivity {
             View v = puzzleGrid.getChildAt(i);
             puzzleChunkIds[i] = (int) v.getTag();
         }
+        checkPuzzle();
 
         // Save Array.
         JSONArray jsonArray = new JSONArray(Arrays.asList(puzzleChunkIds));
@@ -157,11 +191,13 @@ public class ImagePuzzleActivity extends AppCompatActivity {
         int row = gridIndex/columnCount;
         int column = gridIndex%columnCount;
 
-        GridLayout.LayoutParams params = new GridLayout.LayoutParams(GridLayout.spec(row, 1f),      GridLayout.spec(column, 1f));
+        GridLayout.LayoutParams params = new GridLayout.LayoutParams(GridLayout.spec(row),      GridLayout.spec(column, 1f));
         params.width = 0;
-        params.height = 0;
+        params.height = GridLayout.LayoutParams.WRAP_CONTENT;
 
         view.setLayoutParams(params);
+        view.setScaleType(ImageView.ScaleType.FIT_XY);
+        view.setAdjustViewBounds(true);
 
         view.setOnDragListener(new View.OnDragListener() {
             @Override

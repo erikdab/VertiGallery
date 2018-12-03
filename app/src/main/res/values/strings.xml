@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Verti Gallery</string>
+    <string name="puzzleTitle">Puzzle</string>
+    <string name="bagTitle">Pieces Bag</string>
 </resources>
