@@ -23,24 +23,21 @@ public class MainActivity extends AppCompatActivity {
 
     // List of available images.
     static int[] mResources = {
-            R.drawable.barash,
-            R.drawable.elenas,
-            R.drawable.erundil,
-            R.drawable.ryusume,
-            R.drawable.sigrun,
-            R.drawable.wallpaper1,
-            R.drawable.wallpaper2,
-            R.drawable.wallpaper3,
-            R.drawable.wallpaper4,
-            R.drawable.wallpaper5,
-            R.drawable.wallpaper6,
-            R.drawable.wallpaper7,
-            R.drawable.wallpaper8,
-            R.drawable.wallpaper9,
-            R.drawable.wallpaper10,
-            R.drawable.wallpaper11,
-            R.drawable.wallpaper12,
-            R.drawable.wallpaper13
+            R.drawable.image1,
+            R.drawable.image2,
+            R.drawable.image3,
+            R.drawable.image4,
+            R.drawable.image5,
+            R.drawable.image6,
+            R.drawable.image7,
+            R.drawable.image8,
+            R.drawable.image9,
+            R.drawable.image10,
+            R.drawable.image11,
+            R.drawable.image12,
+            R.drawable.image13,
+            R.drawable.image14,
+            R.drawable.image15,
     };
 
     MyAdapter mAdapter;
