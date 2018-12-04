@@ -10,7 +10,12 @@ import android.os.Bundle;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.GridLayout;
+import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.DragEvent;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
 
@@ -24,15 +29,16 @@ import java.util.Arrays;
 public class ImagePuzzleActivity extends AppCompatActivity {
 
     static final int CHUNK_NUMBERS = 9;
+    static final int EMPTY_CHUNK = -1;
 
     int[] puzzleChunkIds = new int[CHUNK_NUMBERS];
 
     GridLayout puzzleGrid, bagGrid;
 
     ArrayList<Bitmap> imageChunks;
-    Bitmap clearImage;
+    Bitmap emptyChunkImage;
 
-    private enum GRIDTYPE {
+    private enum SLOTTYPE {
         PUZZLE,
         BAG
     }
@@ -47,18 +53,16 @@ public class ImagePuzzleActivity extends AppCompatActivity {
 
         BitmapDrawable drawable = (BitmapDrawable) getResources().getDrawable(resourceId);
 
-        getSupportActionBar().setTitle("Image Puzzle");
+        imageChunks = Utils.splitImage(drawable, CHUNK_NUMBERS);
 
-        imageChunks = splitImage(drawable, CHUNK_NUMBERS);
-
-        clearImage = Bitmap.createBitmap(imageChunks.get(0).getWidth(), imageChunks.get(0).getHeight(), Bitmap.Config.ARGB_8888);
-        clearImage.eraseColor(Color.TRANSPARENT);
+        emptyChunkImage = Bitmap.createBitmap(imageChunks.get(0).getWidth(), imageChunks.get(0).getHeight(), Bitmap.Config.ARGB_8888);
+        emptyChunkImage.eraseColor(Color.TRANSPARENT);
 
         puzzleGrid = findViewById(R.id.puzzlegrid);
-        initGrid(puzzleGrid, GRIDTYPE.PUZZLE);
+        initGrid(puzzleGrid, SLOTTYPE.PUZZLE);
 
         bagGrid = findViewById(R.id.baggrid);
-        initGrid(bagGrid, GRIDTYPE.BAG);
+        initGrid(bagGrid, SLOTTYPE.BAG);
 
         // Initialize Puzzle Chunk Ids
         for(int i=0;i<CHUNK_NUMBERS;i++) {
@@ -66,9 +70,36 @@ public class ImagePuzzleActivity extends AppCompatActivity {
         }
 
         loadPuzzle();
+
+        Toolbar myToolbar = findViewById(R.id.my_toolbar);
+        setSupportActionBar(myToolbar);
+
+        getSupportActionBar().setTitle("Image Puzzle");
     }
 
-    private void initGrid(final GridLayout grid, GRIDTYPE gridType) {
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.puzzle_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.action_reset:
+                resetPuzzle();
+                return true;
+
+            default:
+                // If we got here, the user's action was not recognized.
+                // Invoke the superclass to handle it.
+                return super.onOptionsItemSelected(item);
+
+        }
+    }
+
+    private void initGrid(final GridLayout grid, SLOTTYPE gridType) {
         grid.setColumnCount((int) Math.sqrt(CHUNK_NUMBERS));
         grid.setRowCount((int) Math.sqrt(CHUNK_NUMBERS));
 
@@ -82,16 +113,34 @@ public class ImagePuzzleActivity extends AppCompatActivity {
     private void setSlot(ImageView slot, int chunkId) {
         Bitmap chunk = imageChunks.get(chunkId);
         slot.setImageBitmap(chunk);
+        setSlotChunkId(slot, chunkId);
+    }
+
+    private void setSlot(GridLayout grid, int locationId, int chunkId) {
+        ImageView slot = (ImageView) grid.getChildAt(locationId);
+        setSlot(slot, chunkId);
+    }
+
+    private int getSlotChunkId(View slot) {
+        return (int) slot.getTag();
+    }
+
+    private void setSlotChunkId(View slot, int chunkId) {
         slot.setTag(chunkId);
     }
 
-    private void clearSlot(ImageView slot) {
-        slot.setImageBitmap(clearImage);
-        slot.setTag(-1);
+    private boolean isSlotEmpty(View slot) {
+        return getSlotChunkId(slot) == EMPTY_CHUNK;
     }
 
-    private boolean isSlotEmpty(ImageView slot) {
-        return (int) slot.getTag() == -1;
+    private void clearSlot(ImageView slot) {
+        slot.setImageBitmap(emptyChunkImage);
+        setSlotChunkId(slot, EMPTY_CHUNK);
+    }
+
+    private void clearSlot(GridLayout grid, int locationId) {
+        ImageView slot = (ImageView) grid.getChildAt(locationId);
+        clearSlot(slot);
     }
 
     private void checkPuzzle() {
@@ -102,7 +151,7 @@ public class ImagePuzzleActivity extends AppCompatActivity {
         }
 
         AlertDialog.Builder dlgAlert  = new AlertDialog.Builder(this);
-        dlgAlert.setMessage("You've completed the puzzle!");
+        dlgAlert.setMessage("You've completed the puzzle_menu!");
         dlgAlert.setPositiveButton("OK",
                 new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int which) {
@@ -113,16 +162,20 @@ public class ImagePuzzleActivity extends AppCompatActivity {
         dlgAlert.create().show();
     }
 
-    // TODO: reset the puzzle and the randomization.
+    // TODO: reset the puzzle_menu and the randomization.
     private void resetPuzzle() {
         for(int i=0;i<CHUNK_NUMBERS;i++) {
             ImageView puzzleSlot = (ImageView) puzzleGrid.getChildAt(i);
-            ImageView bagSlot = (ImageView) bagGrid.getChildAt(i);
-            puzzleChunkIds[i] = -1;
+
+            if(! isSlotEmpty(puzzleSlot)) {
+                int puzzleChunkId = getSlotChunkId(puzzleSlot);
+
+                setSlot(bagGrid, puzzleChunkId, puzzleChunkId);
+                clearSlot(puzzleSlot);
+            }
         }
 
         savePuzzle();
-        loadPuzzle();
     }
 
     //TODO: make it save per picture, not just global, also save the randomization.
@@ -130,7 +183,7 @@ public class ImagePuzzleActivity extends AppCompatActivity {
         // Save array from Slots.
         for(int i=0;i<CHUNK_NUMBERS;i++) {
             View v = puzzleGrid.getChildAt(i);
-            puzzleChunkIds[i] = (int) v.getTag();
+            puzzleChunkIds[i] = getSlotChunkId(v);
         }
         checkPuzzle();
 
@@ -138,7 +191,7 @@ public class ImagePuzzleActivity extends AppCompatActivity {
         JSONArray jsonArray = new JSONArray(Arrays.asList(puzzleChunkIds));
         JSONObject jsonObject = new JSONObject();
         try {
-            jsonObject.put("puzzle", jsonArray);
+            jsonObject.put("puzzle_menu", jsonArray);
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -152,7 +205,7 @@ public class ImagePuzzleActivity extends AppCompatActivity {
             String jsonString = Utils.read(this, "storage.json");
             try {
                 JSONObject jsonObject = new JSONObject(jsonString);
-                JSONArray innerJSONArray = ((JSONArray) jsonObject.get("puzzle")).getJSONArray(0);
+                JSONArray innerJSONArray = ((JSONArray) jsonObject.get("puzzle_menu")).getJSONArray(0);
 
                 for (int i = 0; i < innerJSONArray.length(); i++) {
                     puzzleChunkIds[i] = innerJSONArray.getInt(i);
@@ -162,46 +215,40 @@ public class ImagePuzzleActivity extends AppCompatActivity {
             }
         }
 
-        // Update actual Slots.
+        // Update Bag and Puzzle.
         for(int i=0;i<CHUNK_NUMBERS;i++) {
             if(puzzleChunkIds[i] != -1) {
-                ImageView puzzleSlot = (ImageView) puzzleGrid.getChildAt(i);
-                setSlot(puzzleSlot, puzzleChunkIds[i]);
-                ImageView bagSlot = (ImageView) bagGrid.getChildAt(puzzleChunkIds[i]);
-                clearSlot(bagSlot);
+                setSlot(puzzleGrid, i, puzzleChunkIds[i]);
+                clearSlot(bagGrid, puzzleChunkIds[i]);
             }
         }
     }
 
-    private void initView(final ImageView view, final int gridIndex, final GRIDTYPE gridType) {
-        if(gridType == GRIDTYPE.BAG) {
-            setSlot(view, gridIndex);
+    private void initView(final ImageView thisSlot, final int thisLocationId, final SLOTTYPE slotType) {
+        // The Bag starts full.
+        if(slotType == SLOTTYPE.BAG) {
+            setSlot(thisSlot, thisLocationId);
         }
         // The Puzzle starts empty.
         else {
-            if(puzzleChunkIds[gridIndex] != 0) {
-                setSlot(view, puzzleChunkIds[gridIndex]);
-            }
-            else {
-                clearSlot(view);
-            }
+            clearSlot(thisSlot);
         }
 
         // Set sizing and position: row, column specification
         int columnCount = (int) Math.sqrt(CHUNK_NUMBERS);
         int rowCount = (int) Math.sqrt(CHUNK_NUMBERS);
-        int row = gridIndex/columnCount;
-        int column = gridIndex%columnCount;
+        int row = thisLocationId/columnCount;
+        int column = thisLocationId%columnCount;
 
         GridLayout.LayoutParams params = new GridLayout.LayoutParams(GridLayout.spec(row),      GridLayout.spec(column, 1f));
         params.width = 0;
         params.height = GridLayout.LayoutParams.WRAP_CONTENT;
 
-        view.setLayoutParams(params);
-        view.setScaleType(ImageView.ScaleType.FIT_XY);
-        view.setAdjustViewBounds(true);
+        thisSlot.setLayoutParams(params);
+        thisSlot.setScaleType(ImageView.ScaleType.FIT_XY);
+        thisSlot.setAdjustViewBounds(true);
 
-        view.setOnDragListener(new View.OnDragListener() {
+        thisSlot.setOnDragListener(new View.OnDragListener() {
             @Override
             public boolean onDrag(View v, DragEvent event) {
                 switch(event.getAction()) {
@@ -228,39 +275,34 @@ public class ImagePuzzleActivity extends AppCompatActivity {
                         int fromChunkId = Integer.parseInt(event.getClipData().getItemAt(0).getText().toString());
 
                         // Get type of grid from which we started dragging.
-                        GRIDTYPE fromGridType = GRIDTYPE.valueOf(event.getClipData().getItemAt(1).getText().toString());
+                        SLOTTYPE fromSlotType = SLOTTYPE.valueOf(event.getClipData().getItemAt(1).getText().toString());
 
                         // Get type of grid from which we started dragging.
                         int fromLocation = Integer.parseInt(event.getClipData().getItemAt(2).getText().toString());
 
                         //TODO: make sure it's not the same location and grid and chunkid.
 
-                        ImageView toSlotThis = (ImageView) v;
+                        int thisChunkId = (int) getSlotChunkId(thisSlot);
 
                         // If we are dropping into the Bag:
-                        if(gridType == GRIDTYPE.BAG) {
-                            // Clear the from puzzle slot.
-                            ImageView fromPuzzleSlot = (ImageView) puzzleGrid.getChildAt(fromLocation);
-                            clearSlot(fromPuzzleSlot);
+                        if(slotType == SLOTTYPE.BAG) {
+                            // Clear the from puzzle_menu slot.
+                            clearSlot(puzzleGrid, fromLocation);
 
                             // Reset the to bag slot to were it should be (where it started).
-                            ImageView correctBagSlot = (ImageView) bagGrid.getChildAt(fromChunkId);
-                            setSlot(correctBagSlot, fromChunkId);
+                            setSlot(bagGrid, fromChunkId, fromChunkId);
                         }
                         // If we are dropping into the Puzzle:
                         else {
                             // If we dragged from a Puzzle slot into a Puzzle slot:
-                            if (fromGridType == GRIDTYPE.PUZZLE) {
-                                ImageView fromPuzzleSlot = (ImageView) puzzleGrid.getChildAt(fromLocation);
-
-                                // Clear the from puzzle slot if the to puzzle slot is empty.
-                                if (isSlotEmpty(toSlotThis)) {
-                                    clearSlot(fromPuzzleSlot);
+                            if (fromSlotType == SLOTTYPE.PUZZLE) {
+                                // Clear the from puzzle_menu slot if the to puzzle_menu slot is empty.
+                                if (isSlotEmpty(thisSlot)) {
+                                    clearSlot(puzzleGrid, fromLocation);
                                 }
-                                // Set the from puzzle slot to the to puzzle slot. (Swap)
+                                // Set the from puzzle_menu slot to the to puzzle_menu slot. (Swap)
                                 else {
-                                    int chunkId = (int) v.getTag();
-                                    setSlot(fromPuzzleSlot, chunkId);
+                                    setSlot(puzzleGrid, fromLocation, thisChunkId);
                                 }
                             }
                             // If we dragged from a Bag slot into a Puzzle slot
@@ -268,20 +310,16 @@ public class ImagePuzzleActivity extends AppCompatActivity {
                                 // If we are replacing a non empty Puzzle slot with a Bag slot:
                                 // Reset the correct Bag slot of the replaced Puzzle slot
                                 // The one we are replacing:
-                                if (! isSlotEmpty(toSlotThis)) {
-                                    int chunkId = (int) v.getTag();
-
+                                if (! isSlotEmpty(thisSlot)) {
                                     // Reset the to bag slot to were it should be (where it started).
-                                    ImageView correctBagSlot = (ImageView) bagGrid.getChildAt(chunkId);
-                                    setSlot(correctBagSlot, fromChunkId);
+                                    setSlot(bagGrid, thisChunkId, thisChunkId);
                                 }
                                 // Clear the from Bag slot - The one we are dragging:
-                                ImageView fromBagSlot = (ImageView) bagGrid.getChildAt(fromChunkId);
-                                clearSlot(fromBagSlot);
+                                clearSlot(bagGrid, fromChunkId);
                             }
 
                             // Set toPuzzleSlot (this object)
-                            setSlot(toSlotThis, fromChunkId);
+                            setSlot(thisSlot, fromChunkId);
                         }
 
                         savePuzzle();
@@ -299,74 +337,23 @@ public class ImagePuzzleActivity extends AppCompatActivity {
             }
         });
 
-        view.setOnLongClickListener(new View.OnLongClickListener() {
+        thisSlot.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
-                if (isSlotEmpty((ImageView) v)) return false;
+                if (isSlotEmpty(v)) return false;
 
                 // chunkId
-                ClipData data = ClipData.newPlainText("value", view.getTag().toString());
+                ClipData data = ClipData.newPlainText("value", Integer.toString(getSlotChunkId(v)));
 
                 // gridType
-                data.addItem(new ClipData.Item(gridType.toString()));
+                data.addItem(new ClipData.Item(slotType.toString()));
 
                 // gridLocation
-                data.addItem(new ClipData.Item(Integer.toString(gridIndex)));
+                data.addItem(new ClipData.Item(Integer.toString(thisLocationId)));
 
-                view.startDrag(data, new View.DragShadowBuilder(v), null, 0);
+                thisSlot.startDrag(data, new View.DragShadowBuilder(v), null, 0);
                 return true;
             }
         });
-    }
-
-    /**
-     * Splits the source image and show them all into a grid in a new activity
-     *  @param image The source image to split
-     * @param chunkNumbers The target number of small image chunks to be formed from the source image
-     */
-    private static ArrayList<Bitmap> splitImage(ImageView image, int chunkNumbers) {
-
-        //Getting the scaled bitmap of the source image
-        BitmapDrawable drawable = (BitmapDrawable) image.getDrawable();
-
-        return splitImage(drawable, chunkNumbers);
-    }
-
-    /**
-     * Splits the source image and show them all into a grid in a new activity
-     *  @param drawable The source image to split
-     * @param chunkNumbers The target number of small image chunks to be formed from the source image
-     */
-    private static ArrayList<Bitmap> splitImage(BitmapDrawable drawable, int chunkNumbers) {
-
-        //For the number of rows and columns of the grid to be displayed
-        int rows,cols;
-
-        //For height and width of the small image chunks
-        int chunkHeight,chunkWidth;
-
-        //To store all the small image chunks in bitmap format in this list
-        ArrayList<Bitmap> chunkedImages = new ArrayList<Bitmap>(chunkNumbers);
-
-        //Getting the scaled bitmap of the source image
-        Bitmap bitmap = drawable.getBitmap();
-        Bitmap scaledBitmap = Bitmap.createScaledBitmap(bitmap, bitmap.getWidth(), bitmap.getHeight(), true);
-
-        rows = cols = (int) Math.sqrt(chunkNumbers);
-        chunkHeight = bitmap.getHeight()/rows;
-        chunkWidth = bitmap.getWidth()/cols;
-
-        //xCoord and yCoord are the pixel positions of the image chunks
-        int yCoord = 0;
-        for(int x=0; x<rows; x++){
-            int xCoord = 0;
-            for(int y=0; y<cols; y++){
-                chunkedImages.add(Bitmap.createBitmap(scaledBitmap, xCoord, yCoord, chunkWidth, chunkHeight));
-                xCoord += chunkWidth;
-            }
-            yCoord += chunkHeight;
-        }
-
-        return chunkedImages;
     }
 }
