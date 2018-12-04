@@ -113,6 +113,7 @@ public class ImagePuzzleActivity extends AppCompatActivity {
         dlgAlert.create().show();
     }
 
+    // TODO: reset the puzzle and the randomization.
     private void resetPuzzle() {
         for(int i=0;i<CHUNK_NUMBERS;i++) {
             ImageView puzzleSlot = (ImageView) puzzleGrid.getChildAt(i);
@@ -124,6 +125,7 @@ public class ImagePuzzleActivity extends AppCompatActivity {
         loadPuzzle();
     }
 
+    //TODO: make it save per picture, not just global, also save the randomization.
     private void savePuzzle() {
         // Save array from Slots.
         for(int i=0;i<CHUNK_NUMBERS;i++) {
@@ -233,6 +235,8 @@ public class ImagePuzzleActivity extends AppCompatActivity {
 
                         //TODO: make sure it's not the same location and grid and chunkid.
 
+                        ImageView toSlotThis = (ImageView) v;
+
                         // If we are dropping into the Bag:
                         if(gridType == GRIDTYPE.BAG) {
                             // Clear the from puzzle slot.
@@ -240,8 +244,8 @@ public class ImagePuzzleActivity extends AppCompatActivity {
                             clearSlot(fromPuzzleSlot);
 
                             // Reset the to bag slot to were it should be (where it started).
-                            ImageView intoBagSlot = (ImageView) bagGrid.getChildAt(fromChunkId);
-                            setSlot(intoBagSlot, fromChunkId);
+                            ImageView correctBagSlot = (ImageView) bagGrid.getChildAt(fromChunkId);
+                            setSlot(correctBagSlot, fromChunkId);
                         }
                         // If we are dropping into the Puzzle:
                         else {
@@ -250,7 +254,7 @@ public class ImagePuzzleActivity extends AppCompatActivity {
                                 ImageView fromPuzzleSlot = (ImageView) puzzleGrid.getChildAt(fromLocation);
 
                                 // Clear the from puzzle slot if the to puzzle slot is empty.
-                                if (isSlotEmpty((ImageView) v)) {
+                                if (isSlotEmpty(toSlotThis)) {
                                     clearSlot(fromPuzzleSlot);
                                 }
                                 // Set the from puzzle slot to the to puzzle slot. (Swap)
@@ -261,13 +265,23 @@ public class ImagePuzzleActivity extends AppCompatActivity {
                             }
                             // If we dragged from a Bag slot into a Puzzle slot
                             else {
-                                // Clear the from Bag slot.
+                                // If we are replacing a non empty Puzzle slot with a Bag slot:
+                                // Reset the correct Bag slot of the replaced Puzzle slot
+                                // The one we are replacing:
+                                if (! isSlotEmpty(toSlotThis)) {
+                                    int chunkId = (int) v.getTag();
+
+                                    // Reset the to bag slot to were it should be (where it started).
+                                    ImageView correctBagSlot = (ImageView) bagGrid.getChildAt(chunkId);
+                                    setSlot(correctBagSlot, fromChunkId);
+                                }
+                                // Clear the from Bag slot - The one we are dragging:
                                 ImageView fromBagSlot = (ImageView) bagGrid.getChildAt(fromChunkId);
                                 clearSlot(fromBagSlot);
                             }
 
                             // Set toPuzzleSlot (this object)
-                            setSlot((ImageView) v, fromChunkId);
+                            setSlot(toSlotThis, fromChunkId);
                         }
 
                         savePuzzle();
