@@ -3,6 +3,7 @@ package com.erbur.vertigallery;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
+import android.util.Log;
 import android.widget.ImageView;
 
 import java.io.BufferedReader;
@@ -13,6 +14,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Random;
 
 public class Utils {
     public static String read(Context context, String fileName) {
@@ -105,5 +107,42 @@ public class Utils {
         }
 
         return chunkedImages;
+    }
+
+    public static int[] randomizeArray(int[] array){
+        Random rgen = new Random();  // Random number generator
+
+        for (int i=0; i<array.length; i++) {
+            int randomPosition = rgen.nextInt(array.length);
+            int temp = array[i];
+            array[i] = array[randomPosition];
+            array[randomPosition] = temp;
+        }
+
+        return array;
+    }
+
+    public static void shuffleArray(int[] array)
+    {
+        int index;
+        Random random = new Random();
+        for (int i = array.length - 1; i > 0; i--)
+        {
+            index = random.nextInt(i + 1);
+            if (index != i)
+            {
+                array[index] ^= array[i];
+                array[i] ^= array[index];
+                array[index] ^= array[i];
+            }
+        }
+    }
+
+    public static void printArray(int[] arr) {
+        StringBuilder d = new StringBuilder();
+        for(int i=0;i<arr.length;i++) {
+            d.append(Integer.toString(arr[i]));
+        }
+        Log.d("TESTDEBUG", d.toString());
     }
 }

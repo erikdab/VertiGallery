@@ -79,4 +79,5 @@
     <string name="pref_title_vibrate">Vibrate</string>
     <string name="puzzle_save_error">Could not save Puzzle Data, please contact Developer.</string>
     <string name="puzzle_load_error">Failed to load save because of incompatibility. New saves should work.</string>
+    <string name="puzzle_completed_message">You\'ve completed the puzzle. Congratulations!</string>
 </resources>

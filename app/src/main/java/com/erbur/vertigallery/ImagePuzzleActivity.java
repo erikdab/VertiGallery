@@ -31,8 +31,6 @@ public class ImagePuzzleActivity extends AppCompatActivity {
     static final int CHUNK_NUMBERS = 9;
     static final int EMPTY_CHUNK = -1;
 
-    int[] puzzleChunkIds = new int[CHUNK_NUMBERS];
-
     GridLayout puzzleGrid, bagGrid;
 
     JSONObject puzzles;
@@ -40,8 +38,12 @@ public class ImagePuzzleActivity extends AppCompatActivity {
     ArrayList<Bitmap> imageChunks;
     Bitmap emptyChunkImage;
 
-    int thisPuzzleResourceId;
-    String thisPuzzleResourceIdString;
+    int puzzleResourceId;
+    String puzzleResourceIdString;
+    int[] puzzleChunkIds = new int[CHUNK_NUMBERS];
+    int[] bagChunkIds = new int[CHUNK_NUMBERS];
+    // Not to be saved, just to use.
+    int[] bagChunkIdsReverse = new int[CHUNK_NUMBERS];
 
     private enum SLOTTYPE {
         PUZZLE,
@@ -54,15 +56,24 @@ public class ImagePuzzleActivity extends AppCompatActivity {
         setContentView(R.layout.activity_image_puzzle);
 
         Intent intent = getIntent();
-        thisPuzzleResourceId = intent.getIntExtra("thisPuzzleResourceId", 0);
-        thisPuzzleResourceIdString = Integer.toString(thisPuzzleResourceId);
+        puzzleResourceId = intent.getIntExtra("puzzleResourceId", 0);
+        puzzleResourceIdString = Integer.toString(puzzleResourceId);
 
-        BitmapDrawable drawable = (BitmapDrawable) getResources().getDrawable(thisPuzzleResourceId);
+        BitmapDrawable drawable = (BitmapDrawable) getResources().getDrawable(puzzleResourceId);
 
         imageChunks = Utils.splitImage(drawable, CHUNK_NUMBERS);
 
         emptyChunkImage = Bitmap.createBitmap(imageChunks.get(0).getWidth(), imageChunks.get(0).getHeight(), Bitmap.Config.ARGB_8888);
         emptyChunkImage.eraseColor(Color.TRANSPARENT);
+
+        // Initialize Puzzle Chunk Ids and Bag Chunk Ids
+        for(int i=0;i<CHUNK_NUMBERS;i++) {
+            puzzleChunkIds[i] = EMPTY_CHUNK;
+            bagChunkIds[i] = i;
+            bagChunkIdsReverse[i] = i;
+        }
+
+        loadPuzzle();
 
         puzzleGrid = findViewById(R.id.puzzlegrid);
         initGrid(puzzleGrid, SLOTTYPE.PUZZLE);
@@ -70,12 +81,8 @@ public class ImagePuzzleActivity extends AppCompatActivity {
         bagGrid = findViewById(R.id.baggrid);
         initGrid(bagGrid, SLOTTYPE.BAG);
 
-        // Initialize Puzzle Chunk Ids
-        for(int i=0;i<CHUNK_NUMBERS;i++) {
-            puzzleChunkIds[i]=EMPTY_CHUNK;
-        }
+        setGridsFromData();
 
-        loadPuzzle();
 
         Toolbar myToolbar = findViewById(R.id.my_toolbar);
         setSupportActionBar(myToolbar);
@@ -96,23 +103,9 @@ public class ImagePuzzleActivity extends AppCompatActivity {
             case R.id.action_reset:
                 resetPuzzle();
                 return true;
-
             default:
-                // If we got here, the user's action was not recognized.
-                // Invoke the superclass to handle it.
                 return super.onOptionsItemSelected(item);
 
-        }
-    }
-
-    private void initGrid(final GridLayout grid, SLOTTYPE gridType) {
-        grid.setColumnCount((int) Math.sqrt(CHUNK_NUMBERS));
-        grid.setRowCount((int) Math.sqrt(CHUNK_NUMBERS));
-
-        for (int i = 0; i < CHUNK_NUMBERS; i++) {
-            ImageView view = new ImageView(this);
-            initView(view, i, gridType);
-            grid.addView(view);
         }
     }
 
@@ -150,6 +143,7 @@ public class ImagePuzzleActivity extends AppCompatActivity {
     }
 
     private void checkPuzzle() {
+        // Return if incorrect placement.
         for(int i=0;i<CHUNK_NUMBERS;i++) {
             if (puzzleChunkIds[i] != i) {
                 return;
@@ -157,7 +151,7 @@ public class ImagePuzzleActivity extends AppCompatActivity {
         }
 
         AlertDialog.Builder dlgAlert  = new AlertDialog.Builder(this);
-        dlgAlert.setMessage("You've completed the puzzle_menu!");
+        dlgAlert.setMessage(R.string.puzzle_completed_message);
         dlgAlert.setPositiveButton("OK",
                 new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int which) {
@@ -168,40 +162,74 @@ public class ImagePuzzleActivity extends AppCompatActivity {
         dlgAlert.create().show();
     }
 
-    // TODO: reset the puzzle_menu and the randomization.
-    private void resetPuzzle() {
+    private void setGridsFromData() {
+        // Reset Grids.
         for(int i=0;i<CHUNK_NUMBERS;i++) {
-            ImageView puzzleSlot = (ImageView) puzzleGrid.getChildAt(i);
+            setSlot(bagGrid, i, bagChunkIds[i]);
+            clearSlot(puzzleGrid, i);
+        }
 
-            if(! isSlotEmpty(puzzleSlot)) {
-                int puzzleChunkId = getSlotChunkId(puzzleSlot);
-
-                setSlot(bagGrid, puzzleChunkId, puzzleChunkId);
-                clearSlot(puzzleSlot);
+        // Place already placed slots.
+        for(int i=0;i<CHUNK_NUMBERS;i++) {
+            if(puzzleChunkIds[i] != EMPTY_CHUNK) {
+                setSlot(puzzleGrid, i, puzzleChunkIds[i]);
+                clearSlot(bagGrid, bagChunkIdsReverse[puzzleChunkIds[i]]);
             }
         }
+    }
+
+    private void getDataFromGrids() {
+        for(int i=0;i<CHUNK_NUMBERS;i++) {
+            View puzzleSlot = puzzleGrid.getChildAt(i);
+            puzzleChunkIds[i] = getSlotChunkId(puzzleSlot);
+        }
+    }
+
+    private void shuffleBagChunks() {
+        Utils.shuffleArray(bagChunkIds);
+
+        reverseBagChunks();
+    }
+
+    private void reverseBagChunks() {
+        for(int i=0;i<CHUNK_NUMBERS;i++) {
+            bagChunkIdsReverse[bagChunkIds[i]] = i;
+        }
+    }
+
+    private void resetPuzzle() {
+        shuffleBagChunks();
+
+        // Reset Puzzle Chunk Ids.
+        for(int i=0;i<CHUNK_NUMBERS;i++) {
+            puzzleChunkIds[i] = EMPTY_CHUNK;
+        }
+
+        setGridsFromData();
+
+        onPuzzleChange();
+    }
+
+    private void onPuzzleChange() {
+        getDataFromGrids();
+
+        checkPuzzle();
 
         savePuzzle();
     }
 
-    //TODO: make it save per picture, not just global, also save the randomization.
     private void savePuzzle() {
-        // Save array from Slots.
-        for(int i=0;i<CHUNK_NUMBERS;i++) {
-            View v = puzzleGrid.getChildAt(i);
-            puzzleChunkIds[i] = getSlotChunkId(v);
-        }
-        checkPuzzle();
-
         // Save Array.
         if(puzzles == null) {
             puzzles = new JSONObject();
         }
         JSONArray thisPuzzleChunkIds = new JSONArray(Arrays.asList(puzzleChunkIds));
+        JSONArray thisBagChunkIds = new JSONArray(Arrays.asList(bagChunkIds));
         JSONObject thisPuzzle = new JSONObject();
         try {
-            thisPuzzle.put("chunkIds", thisPuzzleChunkIds);
-            puzzles.put(thisPuzzleResourceIdString, thisPuzzle);
+            thisPuzzle.put("puzzleChunkIds", thisPuzzleChunkIds);
+            thisPuzzle.put("bagChunkIds", thisBagChunkIds);
+            puzzles.put(puzzleResourceIdString, thisPuzzle);
         } catch (JSONException e) {
             e.printStackTrace();
             Toast.makeText(this, getString(R.string.puzzle_save_error), Toast.LENGTH_LONG).show();
@@ -218,34 +246,44 @@ public class ImagePuzzleActivity extends AppCompatActivity {
             try {
                 puzzles = new JSONObject(jsonString);
                 // If it doesn't have, that's ok, its a new puzzle.
-                if(puzzles.has(thisPuzzleResourceIdString)) {
-                    JSONObject thisPuzzle = puzzles.getJSONObject(thisPuzzleResourceIdString);
-                    JSONArray thisPuzzleChunkIds = ((JSONArray) thisPuzzle.get("chunkIds")).getJSONArray(0);
+                if(puzzles.has(puzzleResourceIdString)) {
+                    JSONObject thisPuzzle = puzzles.getJSONObject(puzzleResourceIdString);
+                    JSONArray thisPuzzleChunkIds = ((JSONArray) thisPuzzle.get("puzzleChunkIds")).getJSONArray(0);
+                    JSONArray thisBagChunkIds = ((JSONArray) thisPuzzle.get("bagChunkIds")).getJSONArray(0);
 
                     for (int i = 0; i < thisPuzzleChunkIds.length(); i++) {
                         puzzleChunkIds[i] = thisPuzzleChunkIds.getInt(i);
+                        bagChunkIds[i] = thisBagChunkIds.getInt(i);
                     }
+
+                    reverseBagChunks();
+                }
+                else {
+                    shuffleBagChunks();
                 }
             } catch (JSONException e) {
                 e.printStackTrace();
+                shuffleBagChunks();
                 Toast.makeText(this, getString(R.string.puzzle_load_error), Toast.LENGTH_LONG).show();
-                return;
             }
         }
+    }
 
-        // Update Bag and Puzzle.
-        for(int i=0;i<CHUNK_NUMBERS;i++) {
-            if(puzzleChunkIds[i] != -1) {
-                setSlot(puzzleGrid, i, puzzleChunkIds[i]);
-                clearSlot(bagGrid, puzzleChunkIds[i]);
-            }
+    private void initGrid(final GridLayout grid, SLOTTYPE gridType) {
+        grid.setColumnCount((int) Math.sqrt(CHUNK_NUMBERS));
+        grid.setRowCount((int) Math.sqrt(CHUNK_NUMBERS));
+
+        for (int i = 0; i < CHUNK_NUMBERS; i++) {
+            ImageView view = new ImageView(this);
+            initView(view, i, gridType);
+            grid.addView(view);
         }
     }
 
     private void initView(final ImageView thisSlot, final int thisLocationId, final SLOTTYPE slotType) {
         // The Bag starts full.
         if(slotType == SLOTTYPE.BAG) {
-            setSlot(thisSlot, thisLocationId);
+            setSlot(thisSlot, bagChunkIds[thisLocationId]);
         }
         // The Puzzle starts empty.
         else {
@@ -300,7 +338,7 @@ public class ImagePuzzleActivity extends AppCompatActivity {
 
                         //TODO: make sure it's not the same location and grid and chunkid.
 
-                        int thisChunkId = (int) getSlotChunkId(thisSlot);
+                        int thisChunkId = getSlotChunkId(thisSlot);
 
                         // If we are dropping into the Bag:
                         if(slotType == SLOTTYPE.BAG) {
@@ -308,7 +346,7 @@ public class ImagePuzzleActivity extends AppCompatActivity {
                             clearSlot(puzzleGrid, fromLocation);
 
                             // Reset the to bag slot to were it should be (where it started).
-                            setSlot(bagGrid, fromChunkId, fromChunkId);
+                            setSlot(bagGrid, bagChunkIdsReverse[fromChunkId], fromChunkId);
                         }
                         // If we are dropping into the Puzzle:
                         else {
@@ -330,17 +368,17 @@ public class ImagePuzzleActivity extends AppCompatActivity {
                                 // The one we are replacing:
                                 if (! isSlotEmpty(thisSlot)) {
                                     // Reset the to bag slot to were it should be (where it started).
-                                    setSlot(bagGrid, thisChunkId, thisChunkId);
+                                    setSlot(bagGrid, bagChunkIdsReverse[thisChunkId], thisChunkId);
                                 }
                                 // Clear the from Bag slot - The one we are dragging:
-                                clearSlot(bagGrid, fromChunkId);
+                                clearSlot(bagGrid, fromLocation);
                             }
 
                             // Set toPuzzleSlot (this object)
                             setSlot(thisSlot, fromChunkId);
                         }
 
-                        savePuzzle();
+                        onPuzzleChange();
 
                         return true;
 
