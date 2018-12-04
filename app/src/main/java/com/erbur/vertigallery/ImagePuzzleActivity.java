@@ -11,13 +11,13 @@ import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.GridLayout;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
 import android.view.DragEvent;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -35,8 +35,13 @@ public class ImagePuzzleActivity extends AppCompatActivity {
 
     GridLayout puzzleGrid, bagGrid;
 
+    JSONObject puzzles;
+
     ArrayList<Bitmap> imageChunks;
     Bitmap emptyChunkImage;
+
+    int thisPuzzleResourceId;
+    String thisPuzzleResourceIdString;
 
     private enum SLOTTYPE {
         PUZZLE,
@@ -49,9 +54,10 @@ public class ImagePuzzleActivity extends AppCompatActivity {
         setContentView(R.layout.activity_image_puzzle);
 
         Intent intent = getIntent();
-        int resourceId = intent.getIntExtra("resourceId", 0);
+        thisPuzzleResourceId = intent.getIntExtra("thisPuzzleResourceId", 0);
+        thisPuzzleResourceIdString = Integer.toString(thisPuzzleResourceId);
 
-        BitmapDrawable drawable = (BitmapDrawable) getResources().getDrawable(resourceId);
+        BitmapDrawable drawable = (BitmapDrawable) getResources().getDrawable(thisPuzzleResourceId);
 
         imageChunks = Utils.splitImage(drawable, CHUNK_NUMBERS);
 
@@ -66,7 +72,7 @@ public class ImagePuzzleActivity extends AppCompatActivity {
 
         // Initialize Puzzle Chunk Ids
         for(int i=0;i<CHUNK_NUMBERS;i++) {
-            puzzleChunkIds[0]=-1;
+            puzzleChunkIds[i]=EMPTY_CHUNK;
         }
 
         loadPuzzle();
@@ -188,14 +194,20 @@ public class ImagePuzzleActivity extends AppCompatActivity {
         checkPuzzle();
 
         // Save Array.
-        JSONArray jsonArray = new JSONArray(Arrays.asList(puzzleChunkIds));
-        JSONObject jsonObject = new JSONObject();
+        if(puzzles == null) {
+            puzzles = new JSONObject();
+        }
+        JSONArray thisPuzzleChunkIds = new JSONArray(Arrays.asList(puzzleChunkIds));
+        JSONObject thisPuzzle = new JSONObject();
         try {
-            jsonObject.put("puzzle_menu", jsonArray);
+            thisPuzzle.put("chunkIds", thisPuzzleChunkIds);
+            puzzles.put(thisPuzzleResourceIdString, thisPuzzle);
         } catch (JSONException e) {
             e.printStackTrace();
+            Toast.makeText(this, getString(R.string.puzzle_save_error), Toast.LENGTH_LONG).show();
+            return;
         }
-        Utils.create(this, "storage.json", jsonObject.toString());
+        Utils.create(this, "storage.json", puzzles.toString());
     }
 
     private void loadPuzzle() {
@@ -204,14 +216,20 @@ public class ImagePuzzleActivity extends AppCompatActivity {
         if(isFilePresent) {
             String jsonString = Utils.read(this, "storage.json");
             try {
-                JSONObject jsonObject = new JSONObject(jsonString);
-                JSONArray innerJSONArray = ((JSONArray) jsonObject.get("puzzle_menu")).getJSONArray(0);
+                puzzles = new JSONObject(jsonString);
+                // If it doesn't have, that's ok, its a new puzzle.
+                if(puzzles.has(thisPuzzleResourceIdString)) {
+                    JSONObject thisPuzzle = puzzles.getJSONObject(thisPuzzleResourceIdString);
+                    JSONArray thisPuzzleChunkIds = ((JSONArray) thisPuzzle.get("chunkIds")).getJSONArray(0);
 
-                for (int i = 0; i < innerJSONArray.length(); i++) {
-                    puzzleChunkIds[i] = innerJSONArray.getInt(i);
+                    for (int i = 0; i < thisPuzzleChunkIds.length(); i++) {
+                        puzzleChunkIds[i] = thisPuzzleChunkIds.getInt(i);
+                    }
                 }
             } catch (JSONException e) {
                 e.printStackTrace();
+                Toast.makeText(this, getString(R.string.puzzle_load_error), Toast.LENGTH_LONG).show();
+                return;
             }
         }
 

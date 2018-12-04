@@ -17,7 +17,7 @@ public class ImageZoomActivity extends AppCompatActivity {
         setContentView(R.layout.activity_image_zoom);
 
         Intent intent = getIntent();
-        int resourceId = intent.getIntExtra("resourceId", 0);
+        int resourceId = intent.getIntExtra("thisPuzzleResourceId", 0);
 
         ImageView imageZoom = findViewById(R.id.image_zoom);
         imageZoom.setImageResource(resourceId);

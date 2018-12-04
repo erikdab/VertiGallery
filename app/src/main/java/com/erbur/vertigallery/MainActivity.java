@@ -193,7 +193,7 @@ public class MainActivity extends AppCompatActivity {
                             @Override
                             public boolean onDoubleTap(MotionEvent e) {
                                 Intent intent = new Intent(v.getContext(), ImageZoomActivity.class);
-                                intent.putExtra("resourceId", mResource);
+                                intent.putExtra("thisPuzzleResourceId", mResource);
                                 startActivity(intent);
 
                                 return super.onDoubleTap(e);
@@ -202,7 +202,7 @@ public class MainActivity extends AppCompatActivity {
                             @Override
                             public void onLongPress(MotionEvent e) {
                                 Intent intent = new Intent(v.getContext(), ImagePuzzleActivity.class);
-                                intent.putExtra("resourceId", mResource);
+                                intent.putExtra("thisPuzzleResourceId", mResource);
                                 startActivity(intent);
 
                                 super.onLongPress(e);
